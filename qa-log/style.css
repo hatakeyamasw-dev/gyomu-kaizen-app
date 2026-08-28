@@ -1,13 +1,21 @@
 :root {
-  --bg: #f7f7f5;
+  --blue: #2f6fed;
+  --blue-dark: #1746a2;
+  --green: #12c48b;
+  --green-dark: #0b8f66;
+  --gradient: linear-gradient(135deg, var(--blue), var(--green));
+  --bg: #f1f7f6;
   --card-bg: #ffffff;
-  --border: #e2e0db;
-  --text: #2b2a27;
-  --muted: #706e68;
-  --accent: #8a5a3b;
-  --accent-bg: #f1e6dc;
-  --danger: #b3423a;
-  --radius: 10px;
+  --border: #dbe9e5;
+  --text: #142b28;
+  --muted: #5b7a74;
+  --chip-blue-bg: #e3ecff;
+  --chip-blue-text: #1746a2;
+  --chip-green-bg: #dcfaef;
+  --chip-green-text: #0b8f66;
+  --danger: #d1453b;
+  --danger-bg: #fdeceb;
+  --radius: 12px;
 }
 
 * { box-sizing: border-box; }
@@ -22,14 +30,20 @@ body {
 }
 
 header {
-  padding: 1rem 1rem 0.5rem;
+  padding: 1.3rem 1rem 0.6rem;
   max-width: 720px;
   margin: 0 auto;
 }
 
 header h1 {
-  font-size: 1.25rem;
-  margin: 0 0 0.25rem;
+  font-size: 1.4rem;
+  margin: 0 0 0.3rem;
+  background: var(--gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 800;
+  letter-spacing: 0.01em;
 }
 
 header p.sub {
@@ -52,18 +66,26 @@ nav.tabs {
 
 nav.tabs button {
   flex: 1;
-  padding: 0.6rem 0.5rem;
+  padding: 0.65rem 0.5rem;
   border: 1px solid var(--border);
   background: var(--card-bg);
   border-radius: var(--radius);
   font-size: 0.95rem;
+  font-weight: 600;
   cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+nav.tabs button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(23, 70, 162, 0.12);
 }
 
 nav.tabs button.active {
-  background: var(--accent);
+  background: var(--gradient);
   color: #fff;
-  border-color: var(--accent);
+  border-color: transparent;
+  box-shadow: 0 4px 14px rgba(18, 196, 139, 0.28);
 }
 
 section.view { display: none; }
@@ -81,6 +103,7 @@ section.view.active { display: block; }
   cursor: pointer;
   font-size: 0.9rem;
   color: var(--muted);
+  font-weight: 600;
 }
 
 .settings .row {
@@ -91,13 +114,20 @@ section.view.active { display: block; }
 
 input[type="text"], input[type="date"], input[type="password"], textarea {
   width: 100%;
-  padding: 0.55rem 0.6rem;
+  padding: 0.6rem 0.65rem;
   border: 1px solid var(--border);
   border-radius: 8px;
   font-size: 0.95rem;
   font-family: inherit;
   background: #fff;
   color: var(--text);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input[type="text"]:focus, input[type="date"]:focus, input[type="password"]:focus, textarea:focus {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(47, 111, 237, 0.15);
 }
 
 textarea { resize: vertical; min-height: 3.5em; }
@@ -106,6 +136,7 @@ label {
   display: block;
   font-size: 0.8rem;
   color: var(--muted);
+  font-weight: 600;
   margin: 0.6rem 0 0.25rem;
 }
 
@@ -114,32 +145,60 @@ button {
 }
 
 button.primary {
-  background: var(--accent);
+  background: var(--gradient);
   color: #fff;
   border: none;
   border-radius: 8px;
-  padding: 0.6rem 1rem;
+  padding: 0.65rem 1.2rem;
   font-size: 0.95rem;
+  font-weight: 700;
   cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 4px 12px rgba(18, 196, 139, 0.25);
+}
+
+button.primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(18, 196, 139, 0.35);
 }
 
 button.secondary {
   background: var(--card-bg);
-  color: var(--text);
+  color: var(--blue-dark);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 0.5rem 0.9rem;
+  padding: 0.55rem 1rem;
   font-size: 0.9rem;
+  font-weight: 600;
   cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+button.secondary:hover {
+  transform: translateY(-1px);
+  border-color: var(--blue);
+  box-shadow: 0 4px 10px rgba(47, 111, 237, 0.15);
+}
+
+button.secondary.danger {
+  color: var(--danger);
+  border-color: #f3c9c6;
+  background: var(--danger-bg);
+}
+
+button.secondary.danger:hover {
+  border-color: var(--danger);
+  box-shadow: 0 4px 10px rgba(209, 69, 59, 0.18);
 }
 
 button.link {
   background: none;
   border: none;
-  color: var(--accent);
+  color: var(--blue-dark);
   cursor: pointer;
   padding: 0.2rem 0;
   font-size: 0.85rem;
+  font-weight: 600;
   text-decoration: underline;
 }
 
@@ -150,7 +209,7 @@ button.link {
 }
 
 .status.error { color: var(--danger); }
-.status.ok { color: #3a7d44; }
+.status.ok { color: var(--green-dark); font-weight: 600; }
 
 .search-bar {
   margin-bottom: 1rem;
@@ -167,11 +226,24 @@ button.link {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 0.9rem 1rem;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.entry-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(20, 43, 40, 0.08);
+}
+
+.entry-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
 }
 
 .entry-card h3 {
   margin: 0 0 0.3rem;
-  font-size: 1.05rem;
+  font-size: 1.08rem;
 }
 
 .entry-meta {
@@ -183,10 +255,16 @@ button.link {
 
 .tag-chip {
   font-size: 0.75rem;
-  background: var(--accent-bg);
-  color: var(--accent);
+  font-weight: 600;
+  background: var(--chip-blue-bg);
+  color: var(--chip-blue-text);
   border-radius: 999px;
-  padding: 0.15rem 0.6rem;
+  padding: 0.15rem 0.65rem;
+}
+
+.tag-chip.alt {
+  background: var(--chip-green-bg);
+  color: var(--chip-green-text);
 }
 
 .point {
@@ -197,8 +275,9 @@ button.link {
 .point:first-of-type { border-top: none; }
 
 .point-label {
-  font-weight: 600;
+  font-weight: 700;
   font-size: 0.92rem;
+  color: var(--blue-dark);
 }
 
 .point-detail {
@@ -209,7 +288,7 @@ button.link {
 .point-evidence {
   margin-top: 0.35rem;
   padding-left: 0.6rem;
-  border-left: 3px solid var(--accent-bg);
+  border-left: 3px solid var(--green);
   color: var(--muted);
   font-size: 0.85rem;
   white-space: pre-wrap;
@@ -245,6 +324,7 @@ button.link {
 .point-row-head span {
   font-size: 0.8rem;
   color: var(--muted);
+  font-weight: 600;
 }
 
 form#register-form {
@@ -261,6 +341,26 @@ form#register-form {
 .form-actions {
   margin-top: 1.2rem;
   display: flex;
+  flex-wrap: wrap;
   gap: 0.6rem;
   align-items: center;
+}
+
+.edit-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  background: var(--chip-green-bg);
+  color: var(--green-dark);
+  border: 1px solid #b7ecd9;
+  border-radius: var(--radius);
+  padding: 0.65rem 0.9rem;
+  margin-bottom: 0.9rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.edit-entry-btn {
+  flex-shrink: 0;
 }

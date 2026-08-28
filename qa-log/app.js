@@ -34,10 +34,16 @@ const el = {
   addPointBtn: document.getElementById("add-point"),
   registerStatus: document.getElementById("register-status"),
   pointRowTemplate: document.getElementById("point-row-template"),
+  editBanner: document.getElementById("edit-banner"),
+  editBannerText: document.getElementById("edit-banner-text"),
+  cancelEditBtn: document.getElementById("cancel-edit"),
+  submitBtn: document.getElementById("submit-btn"),
+  deleteEntryBtn: document.getElementById("delete-entry-btn"),
 };
 
 let currentEntries = [];
 let currentSha = null;
+let editingEntryId = null;
 
 function getPat() {
   return localStorage.getItem(PAT_KEY) || "";
@@ -160,19 +166,31 @@ function renderEntryCard(entry) {
   const card = document.createElement("div");
   card.className = "entry-card";
 
+  const head = document.createElement("div");
+  head.className = "entry-card-head";
+
   const h3 = document.createElement("h3");
   h3.textContent = entry.keyword;
-  card.appendChild(h3);
+  head.appendChild(h3);
+
+  const editBtn = document.createElement("button");
+  editBtn.type = "button";
+  editBtn.className = "secondary edit-entry-btn";
+  editBtn.textContent = "編集";
+  editBtn.addEventListener("click", () => startEdit(entry));
+  head.appendChild(editBtn);
+
+  card.appendChild(head);
 
   if (entry.tags && entry.tags.length) {
     const meta = document.createElement("div");
     meta.className = "entry-meta";
-    for (const tag of entry.tags) {
+    entry.tags.forEach((tag, i) => {
       const chip = document.createElement("span");
-      chip.className = "tag-chip";
+      chip.className = i % 2 === 0 ? "tag-chip" : "tag-chip alt";
       chip.textContent = tag;
       meta.appendChild(chip);
-    }
+    });
     card.appendChild(meta);
   }
 
@@ -262,6 +280,55 @@ function resetForm() {
   addPointRow();
 }
 
+function startEdit(entry) {
+  editingEntryId = entry.id;
+  el.regKeyword.value = entry.keyword;
+  el.regTags.value = (entry.tags || []).join(", ");
+  el.regDate.value = entry.date || new Date().toISOString().slice(0, 10);
+  el.regSource.value = entry.source || "";
+  el.pointsContainer.innerHTML = "";
+  for (const point of entry.points || []) addPointRow(point);
+  if ((entry.points || []).length === 0) addPointRow();
+
+  el.editBanner.style.display = "flex";
+  el.editBannerText.textContent = `「${entry.keyword}」を編集中`;
+  el.submitBtn.textContent = "更新";
+  el.deleteEntryBtn.style.display = "inline-block";
+  el.registerStatus.textContent = "";
+
+  switchTab("register");
+}
+
+function exitEditMode() {
+  editingEntryId = null;
+  el.editBanner.style.display = "none";
+  el.submitBtn.textContent = "保存";
+  el.deleteEntryBtn.style.display = "none";
+  resetForm();
+}
+
+async function deleteCurrentEntry() {
+  if (!editingEntryId) return;
+  const keyword = el.regKeyword.value.trim();
+  if (!confirm(`「${keyword}」を削除します。よろしいですか？`)) return;
+
+  el.registerStatus.textContent = "削除中...";
+  el.registerStatus.className = "status";
+  try {
+    const { sha, entries } = await fetchEntries();
+    const filtered = entries.filter((entry) => entry.id !== editingEntryId);
+    await saveEntries(filtered, sha, `qa-log: ${keyword} を削除`);
+    currentEntries = filtered;
+    updateKeywordList();
+
+    exitEditMode();
+    switchTab("browse");
+  } catch (err) {
+    el.registerStatus.textContent = err.message;
+    el.registerStatus.className = "status error";
+  }
+}
+
 async function handleSubmit(e) {
   e.preventDefault();
   el.registerStatus.textContent = "保存中...";
@@ -296,28 +363,35 @@ async function handleSubmit(e) {
   }
 
   try {
-    // 最新データを取り直してから追記する（他端末での更新との衝突を避ける）
+    // 最新データを取り直してから更新する（他端末での更新との衝突を避ける）
     const { sha, entries } = await fetchEntries();
     const now = new Date().toISOString();
-    const existing = entries.find((entry) => entry.keyword === keyword);
 
     let message;
-    if (existing) {
-      existing.points.push(...points);
-      if (tags.length) existing.tags = [...new Set([...(existing.tags || []), ...tags])];
-      if (source) existing.source = existing.source ? `${existing.source}\n${source}` : source;
-      message = `qa-log: ${keyword} に${points.length}件追加`;
+    if (editingEntryId) {
+      const idx = entries.findIndex((entry) => entry.id === editingEntryId);
+      if (idx === -1) throw new Error("編集対象のエントリが見つかりませんでした（他端末で削除された可能性があります）。");
+      entries[idx] = { ...entries[idx], keyword, tags, date, points, source };
+      message = `qa-log: ${keyword} を更新`;
     } else {
-      entries.push({
-        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
-        keyword,
-        tags,
-        date,
-        points,
-        source,
-        created_at: now,
-      });
-      message = `qa-log: ${keyword} を新規登録`;
+      const existing = entries.find((entry) => entry.keyword === keyword);
+      if (existing) {
+        existing.points.push(...points);
+        if (tags.length) existing.tags = [...new Set([...(existing.tags || []), ...tags])];
+        if (source) existing.source = existing.source ? `${existing.source}\n${source}` : source;
+        message = `qa-log: ${keyword} に${points.length}件追加`;
+      } else {
+        entries.push({
+          id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+          keyword,
+          tags,
+          date,
+          points,
+          source,
+          created_at: now,
+        });
+        message = `qa-log: ${keyword} を新規登録`;
+      }
     }
 
     await saveEntries(entries, sha, message);
@@ -325,9 +399,10 @@ async function handleSubmit(e) {
     currentSha = null;
     updateKeywordList();
 
-    el.registerStatus.textContent = "保存しました。";
+    const wasEditing = Boolean(editingEntryId);
+    exitEditMode();
+    el.registerStatus.textContent = wasEditing ? "更新しました。" : "保存しました。";
     el.registerStatus.className = "status ok";
-    resetForm();
 
     // 閲覧タブに反映
     renderResults(el.searchInput.value);
@@ -369,6 +444,8 @@ function init() {
   el.searchInput.addEventListener("input", () => renderResults(el.searchInput.value));
   el.addPointBtn.addEventListener("click", () => addPointRow());
   el.form.addEventListener("submit", handleSubmit);
+  el.cancelEditBtn.addEventListener("click", () => exitEditMode());
+  el.deleteEntryBtn.addEventListener("click", () => deleteCurrentEntry());
 
   resetForm();
   if (savedPat) loadAndRender();
