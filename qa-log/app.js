@@ -70,7 +70,8 @@ async function fetchEntries() {
   const pat = getPat();
   if (!pat) throw new Error("先に設定パネルでGitHub Personal Access Tokenを保存してください。");
 
-  const res = await fetch(`${apiUrl()}?ref=${encodeURIComponent(CONFIG.branch)}`, {
+  const res = await fetch(`${apiUrl()}?ref=${encodeURIComponent(CONFIG.branch)}&_=${Date.now()}`, {
+    cache: "no-store",
     headers: {
       Authorization: `Bearer ${pat}`,
       Accept: "application/vnd.github+json",
