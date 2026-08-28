@@ -28,6 +28,7 @@ const el = {
   regKeyword: document.getElementById("reg-keyword"),
   keywordList: document.getElementById("keyword-list"),
   regTags: document.getElementById("reg-tags"),
+  regRelated: document.getElementById("reg-related"),
   regDate: document.getElementById("reg-date"),
   regSource: document.getElementById("reg-source"),
   pointsContainer: document.getElementById("points-container"),
@@ -67,8 +68,90 @@ function b64EncodeUnicode(str) {
   );
 }
 
-function apiUrl() {
-  return `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/contents/${CONFIG.path}`;
+function apiUrl(path) {
+  return `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/contents/${path || CONFIG.path}`;
+}
+
+const imageCache = new Map();
+
+function resizeImageFile(file, maxDim = 1280, quality = 0.72) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("画像の読み込みに失敗しました。"));
+    reader.onload = () => {
+      img.onerror = () => reject(new Error("画像の読み込みに失敗しました。"));
+      img.onload = () => {
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => resolve(blob), "image/jpeg", quality);
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("画像の変換に失敗しました。"));
+    reader.onload = () => resolve(reader.result.split(",")[1]);
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function uploadImage(blob) {
+  const pat = getPat();
+  if (!pat) throw new Error("先に設定パネルでGitHub Personal Access Tokenを保存してください。");
+
+  const path = `tools/qa-log/data/images/${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}.jpg`;
+  const base64 = await blobToBase64(blob);
+
+  const res = await fetch(apiUrl(path), {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${pat}`,
+      Accept: "application/vnd.github+json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      message: `qa-log: 画像を追加 (${path.split("/").pop()})`,
+      content: base64,
+      branch: CONFIG.branch,
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`画像のアップロードに失敗しました (${res.status}): ${await res.text()}`);
+  }
+  return path;
+}
+
+async function fetchImageAsObjectUrl(path) {
+  if (imageCache.has(path)) return imageCache.get(path);
+
+  const pat = getPat();
+  const res = await fetch(`${apiUrl(path)}?ref=${encodeURIComponent(CONFIG.branch)}`, {
+    cache: "no-store",
+    headers: {
+      Authorization: `Bearer ${pat}`,
+      Accept: "application/vnd.github+json",
+    },
+  });
+  if (!res.ok) throw new Error("画像の取得に失敗しました。");
+  const json = await res.json();
+  const byteChars = atob(json.content.replace(/\n/g, ""));
+  const bytes = new Uint8Array(byteChars.length);
+  for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
+  const blob = new Blob([bytes], { type: "image/jpeg" });
+  const url = URL.createObjectURL(blob);
+  imageCache.set(path, url);
+  return url;
 }
 
 async function fetchEntries() {
@@ -136,6 +219,7 @@ function renderResults(query) {
     const haystack = [
       entry.keyword,
       ...(entry.tags || []),
+      ...(entry.relatedKeywords || []),
       ...(entry.points || []).flatMap((p) => [p.label, p.detail, p.evidence]),
     ]
       .filter(Boolean)
@@ -217,6 +301,22 @@ function renderEntryCard(entry) {
       pointEl.appendChild(evidence);
     }
 
+    if (point.evidenceImage) {
+      const img = document.createElement("img");
+      img.className = "point-evidence-image";
+      img.alt = point.label || entry.keyword;
+      img.loading = "lazy";
+      fetchImageAsObjectUrl(point.evidenceImage)
+        .then((url) => {
+          img.src = url;
+          img.addEventListener("click", () => window.open(url, "_blank"));
+        })
+        .catch(() => {
+          img.replaceWith(document.createTextNode("（画像の読み込みに失敗しました）"));
+        });
+      pointEl.appendChild(img);
+    }
+
     card.appendChild(pointEl);
   }
 
@@ -225,6 +325,28 @@ function renderEntryCard(entry) {
     source.className = "entry-source";
     source.textContent = `参照元: ${entry.source}`;
     card.appendChild(source);
+  }
+
+  if (entry.relatedKeywords && entry.relatedKeywords.length) {
+    const relatedSection = document.createElement("div");
+    relatedSection.className = "related-section";
+    const label = document.createElement("span");
+    label.className = "related-label";
+    label.textContent = "関連:";
+    relatedSection.appendChild(label);
+    for (const kw of entry.relatedKeywords) {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "related-chip";
+      chip.textContent = kw;
+      chip.addEventListener("click", () => {
+        el.searchInput.value = kw;
+        renderResults(kw);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+      relatedSection.appendChild(chip);
+    }
+    card.appendChild(relatedSection);
   }
 
   return card;
@@ -259,6 +381,8 @@ async function loadAndRender() {
 function addPointRow(prefill) {
   const fragment = el.pointRowTemplate.content.cloneNode(true);
   const row = fragment.querySelector(".point-row");
+  row._imageState = { existingPath: (prefill && prefill.evidenceImage) || "", pendingBlob: null, removed: false };
+
   if (prefill) {
     row.querySelector(".point-label-input").value = prefill.label || "";
     row.querySelector(".point-detail-input").value = prefill.detail || "";
@@ -270,6 +394,44 @@ function addPointRow(prefill) {
       row.remove();
     }
   });
+
+  const preview = row.querySelector(".point-image-preview");
+  const fileInput = row.querySelector(".point-image-input");
+  const removeImageBtn = row.querySelector(".remove-point-image");
+
+  const showPreview = (src) => {
+    preview.src = src;
+    preview.style.display = "block";
+    removeImageBtn.style.display = "inline-block";
+  };
+
+  if (row._imageState.existingPath) {
+    fetchImageAsObjectUrl(row._imageState.existingPath)
+      .then(showPreview)
+      .catch(() => {});
+  }
+
+  fileInput.addEventListener("change", async () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    try {
+      const blob = await resizeImageFile(file);
+      row._imageState.pendingBlob = blob;
+      row._imageState.removed = false;
+      showPreview(URL.createObjectURL(blob));
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
+  removeImageBtn.addEventListener("click", () => {
+    row._imageState.pendingBlob = null;
+    row._imageState.removed = true;
+    fileInput.value = "";
+    preview.style.display = "none";
+    removeImageBtn.style.display = "none";
+  });
+
   el.pointsContainer.appendChild(row);
 }
 
@@ -284,6 +446,7 @@ function startEdit(entry) {
   editingEntryId = entry.id;
   el.regKeyword.value = entry.keyword;
   el.regTags.value = (entry.tags || []).join(", ");
+  el.regRelated.value = (entry.relatedKeywords || []).join(", ");
   el.regDate.value = entry.date || new Date().toISOString().slice(0, 10);
   el.regSource.value = entry.source || "";
   el.pointsContainer.innerHTML = "";
@@ -339,30 +502,47 @@ async function handleSubmit(e) {
     .split(",")
     .map((t) => t.trim())
     .filter(Boolean);
+  const relatedKeywords = el.regRelated.value
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
   const date = el.regDate.value || new Date().toISOString().slice(0, 10);
   const source = el.regSource.value.trim();
 
   const rows = [...el.pointsContainer.querySelectorAll(".point-row")];
-  const points = rows
-    .map((row) => ({
-      label: row.querySelector(".point-label-input").value.trim(),
-      detail: row.querySelector(".point-detail-input").value.trim(),
-      evidence: row.querySelector(".point-evidence-input").value.trim(),
-    }))
-    .filter((p) => p.detail);
+  const hasValidPoint = rows.some((row) => row.querySelector(".point-detail-input").value.trim());
 
   if (!keyword) {
     el.registerStatus.textContent = "キーワードを入力してください。";
     el.registerStatus.className = "status error";
     return;
   }
-  if (points.length === 0) {
+  if (!hasValidPoint) {
     el.registerStatus.textContent = "気をつけることを少なくとも1件入力してください。";
     el.registerStatus.className = "status error";
     return;
   }
 
   try {
+    // 画像のアップロードを先に済ませてからpointsを組み立てる
+    const points = [];
+    for (const row of rows) {
+      const detail = row.querySelector(".point-detail-input").value.trim();
+      if (!detail) continue;
+      const label = row.querySelector(".point-label-input").value.trim();
+      const evidence = row.querySelector(".point-evidence-input").value.trim();
+      let evidenceImage = row._imageState.existingPath;
+      if (row._imageState.pendingBlob) {
+        el.registerStatus.textContent = "画像をアップロード中...";
+        evidenceImage = await uploadImage(row._imageState.pendingBlob);
+      } else if (row._imageState.removed) {
+        evidenceImage = "";
+      }
+      points.push({ label, detail, evidence, evidenceImage });
+    }
+
+    el.registerStatus.textContent = "保存中...";
+
     // 最新データを取り直してから更新する（他端末での更新との衝突を避ける）
     const { sha, entries } = await fetchEntries();
     const now = new Date().toISOString();
@@ -371,13 +551,16 @@ async function handleSubmit(e) {
     if (editingEntryId) {
       const idx = entries.findIndex((entry) => entry.id === editingEntryId);
       if (idx === -1) throw new Error("編集対象のエントリが見つかりませんでした（他端末で削除された可能性があります）。");
-      entries[idx] = { ...entries[idx], keyword, tags, date, points, source };
+      entries[idx] = { ...entries[idx], keyword, tags, relatedKeywords, date, points, source };
       message = `qa-log: ${keyword} を更新`;
     } else {
       const existing = entries.find((entry) => entry.keyword === keyword);
       if (existing) {
         existing.points.push(...points);
         if (tags.length) existing.tags = [...new Set([...(existing.tags || []), ...tags])];
+        if (relatedKeywords.length) {
+          existing.relatedKeywords = [...new Set([...(existing.relatedKeywords || []), ...relatedKeywords])];
+        }
         if (source) existing.source = existing.source ? `${existing.source}\n${source}` : source;
         message = `qa-log: ${keyword} に${points.length}件追加`;
       } else {
@@ -385,6 +568,7 @@ async function handleSubmit(e) {
           id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
           keyword,
           tags,
+          relatedKeywords,
           date,
           points,
           source,

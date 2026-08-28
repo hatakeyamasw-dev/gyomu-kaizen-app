@@ -48,6 +48,9 @@
       <label for="reg-tags">タグ（カンマ区切り）</label>
       <input type="text" id="reg-tags" placeholder="例: 擁壁, 設計">
 
+      <label for="reg-related">関連キーワード（カンマ区切り、任意）</label>
+      <input type="text" id="reg-related" list="keyword-list" placeholder="例: 裏込め, BOX">
+
       <label for="reg-date">日付</label>
       <input type="date" id="reg-date">
 
@@ -78,6 +81,12 @@
     <textarea class="point-detail-input" placeholder="気をつける内容を書く"></textarea>
     <label>根拠（任意。指針の抜粋・自社基準など）</label>
     <textarea class="point-evidence-input" placeholder="根拠となる指針・基準の抜粋"></textarea>
+    <label>写真・図（任意）</label>
+    <div class="point-image-area">
+      <img class="point-image-preview" style="display: none;" alt="添付画像プレビュー">
+      <input type="file" accept="image/*" capture="environment" class="point-image-input">
+      <button type="button" class="link remove-point-image" style="display: none;">画像を削除</button>
+    </div>
   </div>
 </template>
 
