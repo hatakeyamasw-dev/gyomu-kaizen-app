@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>qa-log</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>仕事用Q&amp;A蓄積ツール</h1>
+  <p class="sub">キーワードごとに「気をつけること」をためる</p>
+</header>
+
+<main>
+  <details class="settings" id="settings-panel">
+    <summary id="settings-summary">接続設定（GitHub Personal Access Token）</summary>
+    <div class="row">
+      <input type="password" id="pat-input" placeholder="ghp_... または github_pat_...">
+      <button class="secondary" id="pat-save">保存</button>
+    </div>
+    <p class="status" id="pat-status"></p>
+  </details>
+
+  <nav class="tabs">
+    <button id="tab-browse" class="active">閲覧</button>
+    <button id="tab-register">登録</button>
+  </nav>
+
+  <section id="view-browse" class="view active">
+    <div class="search-bar">
+      <input type="text" id="search-input" placeholder="キーワード・タグ・本文で検索（例: L型擁壁）">
+    </div>
+    <p class="status" id="browse-status"></p>
+    <div class="results" id="results"></div>
+  </section>
+
+  <section id="view-register" class="view">
+    <form id="register-form">
+      <label for="reg-keyword">キーワード</label>
+      <input type="text" id="reg-keyword" list="keyword-list" placeholder="例: L型擁壁" required>
+      <datalist id="keyword-list"></datalist>
+
+      <label for="reg-tags">タグ（カンマ区切り）</label>
+      <input type="text" id="reg-tags" placeholder="例: 擁壁, 設計">
+
+      <label for="reg-date">日付</label>
+      <input type="date" id="reg-date">
+
+      <label for="reg-source">参照元（任意・自由記述）</label>
+      <textarea id="reg-source" placeholder="資料名・リンクなど"></textarea>
+
+      <div id="points-container"></div>
+      <button type="button" class="secondary add-point-btn" id="add-point">＋ 気をつけることを追加</button>
+
+      <div class="form-actions">
+        <button type="submit" class="primary">保存</button>
+        <span class="status" id="register-status"></span>
+      </div>
+    </form>
+  </section>
+</main>
+
+<template id="point-row-template">
+  <div class="point-row">
+    <div class="point-row-head">
+      <span>気をつけること</span>
+      <button type="button" class="link remove-point">削除</button>
+    </div>
+    <label>見出し（任意。例: 根入れ）</label>
+    <input type="text" class="point-label-input" placeholder="根入れ">
+    <label>内容</label>
+    <textarea class="point-detail-input" placeholder="気をつける内容を書く"></textarea>
+    <label>根拠（任意。指針の抜粋・自社基準など）</label>
+    <textarea class="point-evidence-input" placeholder="根拠となる指針・基準の抜粋"></textarea>
+  </div>
+</template>
+
+<script src="app.js"></script>
+</body>
+</html>

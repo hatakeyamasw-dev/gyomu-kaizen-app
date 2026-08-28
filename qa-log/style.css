@@ -1,0 +1,266 @@
+:root {
+  --bg: #f7f7f5;
+  --card-bg: #ffffff;
+  --border: #e2e0db;
+  --text: #2b2a27;
+  --muted: #706e68;
+  --accent: #8a5a3b;
+  --accent-bg: #f1e6dc;
+  --danger: #b3423a;
+  --radius: 10px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  padding-bottom: 3rem;
+}
+
+header {
+  padding: 1rem 1rem 0.5rem;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+header h1 {
+  font-size: 1.25rem;
+  margin: 0 0 0.25rem;
+}
+
+header p.sub {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+nav.tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+nav.tabs button {
+  flex: 1;
+  padding: 0.6rem 0.5rem;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+nav.tabs button.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+section.view { display: none; }
+section.view.active { display: block; }
+
+.settings {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.settings summary {
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.settings .row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+input[type="text"], input[type="date"], input[type="password"], textarea {
+  width: 100%;
+  padding: 0.55rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  background: #fff;
+  color: var(--text);
+}
+
+textarea { resize: vertical; min-height: 3.5em; }
+
+label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 0.6rem 0 0.25rem;
+}
+
+button {
+  font-family: inherit;
+}
+
+button.primary {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: var(--card-bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+button.link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 0.2rem 0;
+  font-size: 0.85rem;
+  text-decoration: underline;
+}
+
+.status {
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+  min-height: 1.2em;
+}
+
+.status.error { color: var(--danger); }
+.status.ok { color: #3a7d44; }
+
+.search-bar {
+  margin-bottom: 1rem;
+}
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.entry-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.9rem 1rem;
+}
+
+.entry-card h3 {
+  margin: 0 0 0.3rem;
+  font-size: 1.05rem;
+}
+
+.entry-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.6rem;
+}
+
+.tag-chip {
+  font-size: 0.75rem;
+  background: var(--accent-bg);
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+}
+
+.point {
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.point:first-of-type { border-top: none; }
+
+.point-label {
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.point-detail {
+  margin-top: 0.15rem;
+  white-space: pre-wrap;
+}
+
+.point-evidence {
+  margin-top: 0.35rem;
+  padding-left: 0.6rem;
+  border-left: 3px solid var(--accent-bg);
+  color: var(--muted);
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+}
+
+.entry-source {
+  margin-top: 0.6rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.empty-state {
+  color: var(--muted);
+  text-align: center;
+  padding: 2rem 1rem;
+  font-size: 0.9rem;
+}
+
+.point-row {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.7rem 0.8rem;
+  margin-top: 0.7rem;
+  background: var(--card-bg);
+}
+
+.point-row-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.point-row-head span {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+form#register-form {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+
+.add-point-btn {
+  margin-top: 0.8rem;
+}
+
+.form-actions {
+  margin-top: 1.2rem;
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
