@@ -20,5 +20,5 @@ gyomu-kaizen自体はprivateリポジトリのためGitHub Pagesを直接使え�
 
 ## 現状の制約
 
-- qa-logが読み書きするgyomu-kaizen側のブランチは `claude/gyomu-kaizen-repo-check-la16xn`（開発中のブランチ）。mainへの統合は今後の判断待ち。切り替える場合は `qa-log/app.js` の `CONFIG.branch` を変更する。
+- qa-logが読み書きするgyomu-kaizen側のブランチは `main`。
 - 複数端末から同時に登録すると、後勝ちで上書きされる可能性がある（個人利用前提のため未対策）。

@@ -5,8 +5,7 @@
 const CONFIG = {
   owner: "hatakeyamasw-dev",
   repo: "gyomu-kaizen",
-  // データ保存先ブランチ。mainへの統合が済んだら "main" 等に変更する。
-  branch: "claude/gyomu-kaizen-repo-check-la16xn",
+  branch: "main",
   path: "tools/qa-log/data/qa.json",
 };
 
