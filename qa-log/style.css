@@ -417,6 +417,17 @@ form#register-form {
   transform: translateY(-1px);
 }
 
+.related-chip.unmatched {
+  color: var(--muted);
+  border: 1px dashed var(--border);
+  background: transparent;
+}
+
+.related-chip.unmatched:hover {
+  background: var(--bg);
+  border-color: var(--muted);
+}
+
 .point-evidence-image {
   display: block;
   max-width: 100%;

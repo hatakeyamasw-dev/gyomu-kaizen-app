@@ -335,10 +335,12 @@ function renderEntryCard(entry) {
     label.textContent = "関連:";
     relatedSection.appendChild(label);
     for (const kw of entry.relatedKeywords) {
+      const isRegistered = currentEntries.some((e) => e.keyword === kw);
       const chip = document.createElement("button");
       chip.type = "button";
-      chip.className = "related-chip";
-      chip.textContent = kw;
+      chip.className = isRegistered ? "related-chip" : "related-chip unmatched";
+      chip.textContent = isRegistered ? kw : `${kw}（未登録）`;
+      chip.title = isRegistered ? `「${kw}」を見る` : `「${kw}」は独立したキーワードとして登録されていません（テキスト検索として動作します）`;
       chip.addEventListener("click", () => {
         el.searchInput.value = kw;
         renderResults(kw);
