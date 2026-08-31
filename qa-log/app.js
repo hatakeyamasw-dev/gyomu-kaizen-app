@@ -86,6 +86,7 @@ const MIME_BY_EXT = {
   ".xls": "application/vnd.ms-excel",
   ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   ".csv": "text/csv",
+  ".xdw": "application/vnd.fujixerox.docuworks",
 };
 const IMAGE_EXTS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp"]);
 const MAX_FILE_BYTES = 15 * 1024 * 1024;
@@ -163,6 +164,16 @@ async function uploadFile(blob, originalName) {
     throw new Error(`ファイルのアップロードに失敗しました (${res.status}): ${await res.text()}`);
   }
   return path;
+}
+
+async function downloadFile(path, name) {
+  const url = await fetchFileAsObjectUrl(path, name);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name || path.split("/").pop();
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 async function fetchFileAsObjectUrl(path, name) {
@@ -358,8 +369,12 @@ function renderEntryCard(entry) {
         link.addEventListener("click", async (e) => {
           e.preventDefault();
           try {
-            const url = await fetchFileAsObjectUrl(path, name);
-            window.open(url, "_blank");
+            if (extFromName(name || path) === ".pdf") {
+              const url = await fetchFileAsObjectUrl(path, name);
+              window.open(url, "_blank");
+            } else {
+              await downloadFile(path, name);
+            }
           } catch (err) {
             alert(err.message);
           }
