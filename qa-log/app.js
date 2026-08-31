@@ -72,7 +72,36 @@ function apiUrl(path) {
   return `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/contents/${path || CONFIG.path}`;
 }
 
-const imageCache = new Map();
+const fileCache = new Map();
+
+const MIME_BY_EXT = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".pdf": "application/pdf",
+  ".doc": "application/msword",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".xls": "application/vnd.ms-excel",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".csv": "text/csv",
+};
+const IMAGE_EXTS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp"]);
+const MAX_FILE_BYTES = 15 * 1024 * 1024;
+
+function extFromName(name) {
+  const m = /\.[a-zA-Z0-9]+$/.exec(name || "");
+  return m ? m[0].toLowerCase() : "";
+}
+
+function isImageName(name) {
+  return IMAGE_EXTS.has(extFromName(name));
+}
+
+function mimeFromName(name) {
+  return MIME_BY_EXT[extFromName(name)] || "application/octet-stream";
+}
 
 function resizeImageFile(file, maxDim = 1280, quality = 0.72) {
   return new Promise((resolve, reject) => {
@@ -105,11 +134,15 @@ function blobToBase64(blob) {
   });
 }
 
-async function uploadImage(blob) {
+async function uploadFile(blob, originalName) {
   const pat = getPat();
   if (!pat) throw new Error("先に設定パネルでGitHub Personal Access Tokenを保存してください。");
+  if (blob.size > MAX_FILE_BYTES) {
+    throw new Error(`ファイルが大きすぎます（${Math.round(blob.size / 1024 / 1024)}MB）。15MB以下にしてください。`);
+  }
 
-  const path = `tools/qa-log/data/images/${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}.jpg`;
+  const ext = extFromName(originalName) || ".bin";
+  const path = `tools/qa-log/data/files/${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}${ext}`;
   const base64 = await blobToBase64(blob);
 
   const res = await fetch(apiUrl(path), {
@@ -120,20 +153,20 @@ async function uploadImage(blob) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      message: `qa-log: 画像を追加 (${path.split("/").pop()})`,
+      message: `qa-log: 添付ファイルを追加 (${originalName || path.split("/").pop()})`,
       content: base64,
       branch: CONFIG.branch,
     }),
   });
 
   if (!res.ok) {
-    throw new Error(`画像のアップロードに失敗しました (${res.status}): ${await res.text()}`);
+    throw new Error(`ファイルのアップロードに失敗しました (${res.status}): ${await res.text()}`);
   }
   return path;
 }
 
-async function fetchImageAsObjectUrl(path) {
-  if (imageCache.has(path)) return imageCache.get(path);
+async function fetchFileAsObjectUrl(path, name) {
+  if (fileCache.has(path)) return fileCache.get(path);
 
   const pat = getPat();
   const res = await fetch(`${apiUrl(path)}?ref=${encodeURIComponent(CONFIG.branch)}`, {
@@ -143,14 +176,14 @@ async function fetchImageAsObjectUrl(path) {
       Accept: "application/vnd.github+json",
     },
   });
-  if (!res.ok) throw new Error("画像の取得に失敗しました。");
+  if (!res.ok) throw new Error("添付ファイルの取得に失敗しました。");
   const json = await res.json();
   const byteChars = atob(json.content.replace(/\n/g, ""));
   const bytes = new Uint8Array(byteChars.length);
   for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
-  const blob = new Blob([bytes], { type: "image/jpeg" });
+  const blob = new Blob([bytes], { type: mimeFromName(name || path) });
   const url = URL.createObjectURL(blob);
-  imageCache.set(path, url);
+  fileCache.set(path, url);
   return url;
 }
 
@@ -301,20 +334,38 @@ function renderEntryCard(entry) {
       pointEl.appendChild(evidence);
     }
 
-    if (point.evidenceImage) {
-      const img = document.createElement("img");
-      img.className = "point-evidence-image";
-      img.alt = point.label || entry.keyword;
-      img.loading = "lazy";
-      fetchImageAsObjectUrl(point.evidenceImage)
-        .then((url) => {
-          img.src = url;
-          img.addEventListener("click", () => window.open(url, "_blank"));
-        })
-        .catch(() => {
-          img.replaceWith(document.createTextNode("（画像の読み込みに失敗しました）"));
+    if (point.evidenceFile) {
+      const { path, name } = point.evidenceFile;
+      if (isImageName(name || path)) {
+        const img = document.createElement("img");
+        img.className = "point-evidence-image";
+        img.alt = point.label || entry.keyword;
+        img.loading = "lazy";
+        fetchFileAsObjectUrl(path, name)
+          .then((url) => {
+            img.src = url;
+            img.addEventListener("click", () => window.open(url, "_blank"));
+          })
+          .catch(() => {
+            img.replaceWith(document.createTextNode("（添付ファイルの読み込みに失敗しました）"));
+          });
+        pointEl.appendChild(img);
+      } else {
+        const link = document.createElement("a");
+        link.className = "point-evidence-file-link";
+        link.href = "#";
+        link.textContent = `📎 ${name || "添付ファイル"}`;
+        link.addEventListener("click", async (e) => {
+          e.preventDefault();
+          try {
+            const url = await fetchFileAsObjectUrl(path, name);
+            window.open(url, "_blank");
+          } catch (err) {
+            alert(err.message);
+          }
         });
-      pointEl.appendChild(img);
+        pointEl.appendChild(link);
+      }
     }
 
     card.appendChild(pointEl);
@@ -383,7 +434,12 @@ async function loadAndRender() {
 function addPointRow(prefill) {
   const fragment = el.pointRowTemplate.content.cloneNode(true);
   const row = fragment.querySelector(".point-row");
-  row._imageState = { existingPath: (prefill && prefill.evidenceImage) || "", pendingBlob: null, removed: false };
+  row._imageState = {
+    existing: (prefill && prefill.evidenceFile) || null,
+    pendingBlob: null,
+    pendingName: "",
+    removed: false,
+  };
 
   if (prefill) {
     row.querySelector(".point-label-input").value = prefill.label || "";
@@ -398,29 +454,48 @@ function addPointRow(prefill) {
   });
 
   const preview = row.querySelector(".point-image-preview");
+  const fileInfo = row.querySelector(".point-file-info");
   const fileInput = row.querySelector(".point-image-input");
   const removeImageBtn = row.querySelector(".remove-point-image");
 
-  const showPreview = (src) => {
+  const showImagePreview = (src) => {
+    fileInfo.style.display = "none";
     preview.src = src;
     preview.style.display = "block";
     removeImageBtn.style.display = "inline-block";
   };
 
-  if (row._imageState.existingPath) {
-    fetchImageAsObjectUrl(row._imageState.existingPath)
-      .then(showPreview)
-      .catch(() => {});
+  const showFileInfo = (name) => {
+    preview.style.display = "none";
+    fileInfo.textContent = `📎 ${name}`;
+    fileInfo.style.display = "flex";
+    removeImageBtn.style.display = "inline-block";
+  };
+
+  if (row._imageState.existing) {
+    const { path, name } = row._imageState.existing;
+    if (isImageName(name || path)) {
+      fetchFileAsObjectUrl(path, name).then(showImagePreview).catch(() => {});
+    } else {
+      showFileInfo(name || path.split("/").pop());
+    }
   }
 
   fileInput.addEventListener("change", async () => {
     const file = fileInput.files[0];
     if (!file) return;
     try {
-      const blob = await resizeImageFile(file);
-      row._imageState.pendingBlob = blob;
+      row._imageState.pendingName = file.name;
       row._imageState.removed = false;
-      showPreview(URL.createObjectURL(blob));
+      if (file.type.startsWith("image/")) {
+        const blob = await resizeImageFile(file);
+        row._imageState.pendingBlob = blob;
+        showImagePreview(URL.createObjectURL(blob));
+      } else {
+        if (file.size > MAX_FILE_BYTES) throw new Error(`ファイルが大きすぎます（${Math.round(file.size / 1024 / 1024)}MB）。15MB以下にしてください。`);
+        row._imageState.pendingBlob = file;
+        showFileInfo(file.name);
+      }
     } catch (err) {
       alert(err.message);
     }
@@ -428,9 +503,11 @@ function addPointRow(prefill) {
 
   removeImageBtn.addEventListener("click", () => {
     row._imageState.pendingBlob = null;
+    row._imageState.pendingName = "";
     row._imageState.removed = true;
     fileInput.value = "";
     preview.style.display = "none";
+    fileInfo.style.display = "none";
     removeImageBtn.style.display = "none";
   });
 
@@ -526,21 +603,22 @@ async function handleSubmit(e) {
   }
 
   try {
-    // 画像のアップロードを先に済ませてからpointsを組み立てる
+    // 添付ファイルのアップロードを先に済ませてからpointsを組み立てる
     const points = [];
     for (const row of rows) {
       const detail = row.querySelector(".point-detail-input").value.trim();
       if (!detail) continue;
       const label = row.querySelector(".point-label-input").value.trim();
       const evidence = row.querySelector(".point-evidence-input").value.trim();
-      let evidenceImage = row._imageState.existingPath;
+      let evidenceFile = row._imageState.existing;
       if (row._imageState.pendingBlob) {
-        el.registerStatus.textContent = "画像をアップロード中...";
-        evidenceImage = await uploadImage(row._imageState.pendingBlob);
+        el.registerStatus.textContent = "添付ファイルをアップロード中...";
+        const path = await uploadFile(row._imageState.pendingBlob, row._imageState.pendingName);
+        evidenceFile = { path, name: row._imageState.pendingName };
       } else if (row._imageState.removed) {
-        evidenceImage = "";
+        evidenceFile = null;
       }
-      points.push({ label, detail, evidence, evidenceImage });
+      points.push({ label, detail, evidence, evidenceFile });
     }
 
     el.registerStatus.textContent = "保存中...";

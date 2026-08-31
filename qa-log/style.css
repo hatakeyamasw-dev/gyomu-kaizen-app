@@ -384,6 +384,35 @@ form#register-form {
   font-size: 0.85rem;
 }
 
+.point-file-info {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.7rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  margin-bottom: 0.4rem;
+  word-break: break-all;
+}
+
+.point-evidence-file-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--blue-dark);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.point-evidence-file-link:hover {
+  text-decoration: underline;
+}
+
 .related-section {
   margin-top: 0.7rem;
   padding-top: 0.6rem;
